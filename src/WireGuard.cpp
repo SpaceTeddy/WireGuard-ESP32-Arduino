@@ -150,3 +150,18 @@ void WireGuard::end()
 
     this->_is_initialized = false;
 }
+
+bool WireGuard::isUp(IPAddress& peerIP) {
+    ip_addr_t peer_ip;
+    err_t err;
+
+    peerIP = IPAddress(0, 0, 0, 0);
+    if (!_is_initialized || (wireguard_peer_index == WIREGUARDIF_INVALID_INDEX)) {
+        return false;
+    }
+    err = wireguardif_peer_is_up(wg_netif, wireguard_peer_index, &peer_ip, NULL);
+    if (err != ERR_ARG) {
+        peerIP = ip4_addr_get_u32(ip_2_ip4(&peer_ip));
+    }
+    return (err == ERR_OK);
+}
