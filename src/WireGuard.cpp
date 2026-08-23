@@ -80,6 +80,16 @@ bool WireGuard::begin(const IPAddress &localIP, const IPAddress &Subnet, const I
         log_e(TAG "failed to get endpoint ip.");
         return false;
     }
+    // Seed the RNG *before* registering the interface. netif_add() runs
+    // wireguardif_init() as its init callback, which generates the cookie
+    // secret via wireguard_random_bytes() -- so the ctr_drbg context has to be
+    // seeded by then. It used to be initialized further below, leaving the
+    // static context zeroed: mbedTLS 2.x quietly produced deterministic output
+    // from it, mbedTLS 3.x (ESP-IDF 5.x) calls the NULL entropy callback and
+    // the device panics with InstrFetchProhibited at PC 0x00000000.
+    // Kept outside the TCPIP core lock below: seeding must not run under it.
+    wireguard_platform_init();
+
     // Register the new WireGuard network interface with lwIP.
     //
     // ESP-IDF 5.x builds lwIP with CONFIG_LWIP_TCPIP_CORE_LOCKING and
@@ -118,8 +128,6 @@ bool WireGuard::begin(const IPAddress &localIP, const IPAddress &Subnet, const I
 
     peer.endport_port = remotePeerPort;
 
-    // Initialize the platform
-    wireguard_platform_init();
     // Register the new WireGuard peer with the netwok interface
     LOCK_TCPIP_CORE();
     wireguardif_add_peer(wg_netif, &peer, &wireguard_peer_index);
