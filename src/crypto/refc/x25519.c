@@ -129,7 +129,9 @@ swapout(uint8_t *out, limb_t *x) {
     memcpy(out,x,sizeof(fe));
 }
 
-static void mul(fe out, const fe a, const fe b, unsigned nb) {
+/* b is a pointer, not "const fe": only nb limbs of it are read, and a24 is a
+ * single limb. Declared as fe, GCC assumes 8 limbs (-Wstringop-overread). */
+static void mul(fe out, const fe a, const limb_t *b, unsigned nb) {
     /* GCC at least produces pretty decent asm for this, so don't need to have dedicated asm. */
     limb_t accum[2*NLIMBS] = {0};
     unsigned i,j;
